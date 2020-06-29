@@ -40,8 +40,14 @@ function transactionSupport(transaction){
 
         if (transaction.user_type === NATURAL_TYPE) {
             
-            isWeekAmountExceeded(transaction);
-            commissionFee = transaction.operation.amount * (cashOutNaturalConfig.percents / 100);
+            if(isWeekAmountExceeded(transaction)){
+                let user = users.findIndex(x => x.userId === transaction.user_id);
+                
+                commissionFee = (transaction.operation.amount) * (cashOutNaturalConfig.percents / 100);
+            }else{
+                commissionFee = 0;
+            }
+
         }else if(transaction.user_type === LEGAL_TYPE) {
             commissionFee = transaction.operation.amount * (cashOutLegalConfig.percents / 100);
         }else{
@@ -57,21 +63,43 @@ function transactionSupport(transaction){
 
 function isWeekAmountExceeded(transaction){
     let weekTimeSpan = getWeekSpan(transaction.date);
+    let user = users.findIndex(x => x.userId === transaction.user_id);
+    //console.log(users[user].weekAmount);
 
-    if(users.findIndex(x => x.user_id === transaction.user_id)){
-        
+
+    //change else to if, else should be primary
+    if(user && user.mondayDate <= transaction.date && user.sundayDate >= transaction.date){
+        user.weekAmount += transaction.operation.amount;
+
+        if(user.weekAmount > 1000){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    else{
+        user ={
+            userId: transaction.user_id,
+            weekAmount: transaction.operation.amount,
+            mondayDate: weekTimeSpan.monday,
+            sundayDate: weekTimeSpan.sunday
+        };
+
+        users.push(user);
+
+        if(user.weekAmount > 1000){
+            return true;
+        }else{
+            return false;
+        }
     }
 
-    let user ={
-        userId: transaction.user_id,
-
-    };
-    
-    console.log("week starts at: " + weekTimeSpan.monday + " and ends at: " + weekTimeSpan.sunday);
+    //console.log("week starts at: " + weekTimeSpan.monday + " and ends at: " + weekTimeSpan.sunday);
 }
 
 function getWeekSpan(date) {
-    date = new Date(d);
+    date = new Date(date);
+
     let day = date.getDay(),
         diff = date.getDate() - day + (day == 0 ? -6:1);
 
