@@ -25,7 +25,7 @@ function testCashOutWithExceededLimit() {
 
     let result = parseFloat(app.resultLog[0]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash out exceeded limit by first operation of the week.');
     console.log('Expect ' + 27.00 + ' equal to ' + result + '.');
     
     try {
@@ -51,7 +51,7 @@ function testCashOutWithExceededLimit_multipleTransactions() {
 
     let result = parseFloat(app.resultLog[3]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash out by multiple operations of the week.');
     console.log('Expect ' + 1.20  + ' equal to ' + result + '.');
     
     try {
@@ -65,7 +65,7 @@ function testCashOutWithExceededLimit_multipleTransactions() {
 }
 
 
-//Cash out exceeded limit by more opearations of week
+//Cash out exceeded limit between multiple weeks
 function testCashOutWithExceededLimit_differentWeeks() {
     let transactions = [{ "date": "2016-03-15", "user_id": 3, "user_type": "natural", "type": "cash_out", "operation": { "amount": 5000.00, "currency": "EUR" }},
                        { "date": "2016-03-15", "user_id": 3, "user_type": "natural", "type": "cash_out", "operation": { "amount": 500.00, "currency": "EUR" }},
@@ -78,7 +78,7 @@ function testCashOutWithExceededLimit_differentWeeks() {
     let result1 = parseFloat(app.resultLog[5]).toFixed(2);
     let result2 = parseFloat(app.resultLog[6]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash out exceeded limit with multiple weeks.');
     console.log('Expect ' + 1.50  + ' equal to ' + result1 + '.');
     console.log('And expect ' + 0.00  + ' equal to ' + result2 + '.');
     
@@ -102,7 +102,7 @@ function testCashOutLegalType() {
     
     let result = parseFloat(app.resultLog[7]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash out for legal user commission no less than 0.50.');
     console.log('Expect ' + 0.50  + ' equal to ' + result + '.');
 
     try {
@@ -123,7 +123,7 @@ function testCashOutRounding() {
     
     let result = parseFloat(app.resultLog[8]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash out rounding.');
     console.log('Exact number what we get is 3.0837 but we expect ' + 3.09  + ' equal to ' + result + '.');
 
     try {
@@ -147,7 +147,7 @@ function testCashIn() {
     
     let result = parseFloat(app.resultLog[9]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash in transaction.');
     console.log('Expect ' + 0.36  + ' equal to ' + result + '.');
 
     try {
@@ -168,7 +168,7 @@ function testCashInMaxCommission() {
     
     let result = parseFloat(app.resultLog[10]).toFixed(2);
 
-    console.log('addTwoNumbers() should return the sum of its two parameters.');
+    console.log('Cash in transaction with max commission rate.');
     console.log('Expect ' + 5.00  + ' equal to ' + result + '.');
 
     try {
