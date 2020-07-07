@@ -1,27 +1,40 @@
 const fs = require('fs');
 const fetch = require("node-fetch");
 const inputFileName = process.argv[2];
-
-const rawInputData = fs.readFileSync(inputFileName);
-const transactions = JSON.parse(rawInputData);
 const CASH_OUT = 'cash_out';
 const CASH_IN = 'cash_in';
 const NATURAL_TYPE = 'natural';
 const LEGAL_TYPE = 'juridical';
 
+let transactions = [];
 let users = [];
+let resultLog = [];
 
 let cashInConfiguration;
 let cashOutNaturalConfig;
 let cashOutLegalConfig;
 
+exports.getConfigurations = getConfigurations;
+exports.transactionSupport = transactionSupport;
+exports.resultLog = resultLog;
 
-main()
+//for testing enviroment separation
+if (inputFileName != 'test') {
+    const rawInputData = fs.readFileSync(inputFileName);
+    transactions = JSON.parse(rawInputData);
+    main();
+}
 
-async function main(){
+//all configuration data
+async function getConfigurations(){
     cashInConfiguration = await getData('http://private-38e18c-uzduotis.apiary-mock.com/config/cash-in');
     cashOutNaturalConfig = await getData('http://private-38e18c-uzduotis.apiary-mock.com/config/cash-out/natural');
     cashOutLegalConfig = await getData('http://private-38e18c-uzduotis.apiary-mock.com/config/cash-out/juridical');
+}
+
+//program start
+async function main(){
+    await getConfigurations();
 
     for(const transaction in transactions){
         transactionSupport(transactions[transaction]);
@@ -29,12 +42,15 @@ async function main(){
 }
 
 
-function transactionSupport(transaction){
+//Commission calculations
+function transactionSupport(transaction) {
     let commissionFee;
 
     if (transaction.type === CASH_IN) {
 
         commissionFee = transaction.operation.amount * (cashInConfiguration.percents / 100);
+        commissionFee = (commissionFee > cashInConfiguration.max.amount) ? cashInConfiguration.max.amount : commissionFee;
+        commissionFee = roundUp(commissionFee, 2);
     
     }else if(transaction.type === CASH_OUT){
 
@@ -42,14 +58,24 @@ function transactionSupport(transaction){
             
             if(isWeekAmountExceeded(transaction)){
                 let user = users.findIndex(x => x.userId === transaction.user_id);
+
+                if(users[user].limitExceeded){
+                    users[user].weekAmount = (!users[user].amountSubstraction) ? users[user].weekAmount -= 1000 : users[user].weekAmount;
+                    users[user].amountSubstraction = true;
+                    users[user].limitExceeded = true;
+                }
                 
-                commissionFee = (transaction.operation.amount) * (cashOutNaturalConfig.percents / 100);
+                commissionFee = (users[user].weekAmount) * (cashOutNaturalConfig.percents / 100);
+                commissionFee = roundUp(commissionFee, 2);
+
             }else{
                 commissionFee = 0;
             }
 
         }else if(transaction.user_type === LEGAL_TYPE) {
             commissionFee = transaction.operation.amount * (cashOutLegalConfig.percents / 100);
+            commissionFee = (commissionFee < cashOutLegalConfig.min.amount) ? cashOutLegalConfig.min.amount : commissionFee;
+            commissionFee = roundUp(commissionFee, 2);
         }else{
             console.log('Unknown user type');
         }
@@ -58,45 +84,63 @@ function transactionSupport(transaction){
         console.log('Unknown transaction type');
     }
     
+    //Print result of commission Fee
     console.log(commissionFee.toFixed(2));
+    resultLog.push(commissionFee.toFixed(2));
 }
 
+
+
+//checks if week amount exceeded
 function isWeekAmountExceeded(transaction){
     let weekTimeSpan = getWeekSpan(transaction.date);
     let user = users.findIndex(x => x.userId === transaction.user_id);
-    //console.log(users[user].weekAmount);
+    const transactionDate = new Date(transaction.date);
 
+    if(user != -1 && users[user].mondayDate <= transactionDate && users[user].sundayDate >= transactionDate){
+        
+        if (!users[user].limitExceeded) {
+            users[user].weekAmount += transaction.operation.amount;
+        }else{
+            users[user].weekAmount = transaction.operation.amount;
+        }
 
-    //change else to if, else should be primary
-    if(user && user.mondayDate <= transaction.date && user.sundayDate >= transaction.date){
-        user.weekAmount += transaction.operation.amount;
-
-        if(user.weekAmount > 1000){
+        if(users[user].weekAmount > 1000 || users[user].limitExceeded){
+            users[user].limitExceeded = true;
             return true;
         }else{
             return false;
         }
     }
     else{
+
+        //Deletes user object from past weeks
+        if(user != -1){
+            users.splice(user, 1);
+        }
+
         user ={
             userId: transaction.user_id,
             weekAmount: transaction.operation.amount,
             mondayDate: weekTimeSpan.monday,
-            sundayDate: weekTimeSpan.sunday
+            sundayDate: weekTimeSpan.sunday,
+            limitExceeded: false,
+            amountSubstraction: false
         };
 
-        users.push(user);
 
-        if(user.weekAmount > 1000){
+        if(user.weekAmount > 1000 || user.limitExceeded){
+            user.limitExceeded = true;
+            users.push(user);
             return true;
         }else{
+            users.push(user);
             return false;
         }
     }
-
-    //console.log("week starts at: " + weekTimeSpan.monday + " and ends at: " + weekTimeSpan.sunday);
 }
 
+//gets Monday and Sunday date of the week
 function getWeekSpan(date) {
     date = new Date(date);
 
@@ -109,6 +153,12 @@ function getWeekSpan(date) {
     }
 
     return monAndSun;
+}
+
+//Rounding to smallest currency item
+function roundUp(num, precision) {
+    precision = Math.pow(10, precision)
+    return Math.ceil(num * precision) / precision
 }
 
 async function getData(url){
